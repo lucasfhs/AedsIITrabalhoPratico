@@ -1,7 +1,7 @@
 import java.io.*;
 import java.util.*;
 
-public class TSPCheapestInsertion {
+public class TSPNearestNeighbor {
 
     // Função para ler os dados do arquivo TSP
     public static double[][] lerTSP(String caminho) throws IOException {
@@ -90,101 +90,54 @@ public class TSPCheapestInsertion {
         return matriz;
     }
 
-    // Função de heurística Cheapest Insertion
-    public static Resultado cheapestInsertion(double[][] matriz) {
+    // Função de heurística Vizinho Mais Próximo
+    public static Resultado vizinhoMaisProximo(double[][] matriz) {
         int n = matriz.length;
-        boolean[] inserido = new boolean[n];
-        List<Integer> tour = new ArrayList<>();
-        double totalDistancia = 0.0;
-
-        // Passo 1: Seleciona a cidade inicial (0) e a adiciona ao tour
-        int inicial = 0;
-        inserido[inicial] = true;
-        tour.add(inicial);
-
-        // Passo 2: Encontra a cidade mais próxima da inicial e adiciona ao tour
-        double minDist = Double.POSITIVE_INFINITY;
-        int maisProxima = -1;
+        boolean[] visitado = new boolean[n];
+        int[] caminho = new int[n];
+        double totalDistancia = 0;
+        
+        // Começa na primeira cidade (índice 0)
+        int atual = 0;
+        visitado[atual] = true;
+        caminho[0] = atual;
+        
+        // Itera sobre todas as cidades para construir o caminho
         for (int i = 1; i < n; i++) {
-            if (matriz[inicial][i] < minDist) {
-                minDist = matriz[inicial][i];
-                maisProxima = i;
-            }
-        }
-        if (maisProxima == -1) {
-            throw new RuntimeException("Não foi possível encontrar uma cidade para iniciar o tour.");
-        }
-        inserido[maisProxima] = true;
-        tour.add(maisProxima);
-        totalDistancia += minDist;
-
-        // Passo 3: Encontra a terceira cidade que fecha o ciclo inicial
-        minDist = Double.POSITIVE_INFINITY;
-        int terceira = -1;
-        for (int i = 0; i < n; i++) {
-            if (!inserido[i] && (matriz[inicial][i] + matriz[maisProxima][i]) < minDist) {
-                minDist = matriz[inicial][i] + matriz[maisProxima][i];
-                terceira = i;
-            }
-        }
-        if (terceira == -1) {
-            throw new RuntimeException("Não foi possível encontrar a terceira cidade para fechar o ciclo.");
-        }
-        inserido[terceira] = true;
-        tour.add(terceira);
-        tour.add(inicial); // Fecha o ciclo
-        totalDistancia += matriz[maisProxima][terceira] + matriz[terceira][inicial];
-
-        // Passo 4: Insere as cidades restantes no tour
-        for (int i = 0; i < n; i++) {
-            if (!inserido[i]) {
-                double melhorAumento = Double.POSITIVE_INFINITY;
-                int melhorPosicao = -1;
-
-                // Tenta inserir a cidade i entre cada par de cidades no tour
-                for (int j = 0; j < tour.size() - 1; j++) {
-                    int cidade1 = tour.get(j);
-                    int cidade2 = tour.get(j + 1);
-                    double aumento = matriz[cidade1][i] + matriz[i][cidade2] - matriz[cidade1][cidade2];
-                    if (aumento < melhorAumento) {
-                        melhorAumento = aumento;
-                        melhorPosicao = j + 1;
-                    }
-                }
-
-                // Insere a cidade na posição que causa o menor aumento de custo
-                if (melhorPosicao != -1) {
-                    tour.add(melhorPosicao, i);
-                    totalDistancia += melhorAumento;
-                    inserido[i] = true;
-                } else {
-                    throw new RuntimeException("Não foi possível inserir a cidade " + i + " no tour.");
+            double menorDist = Double.POSITIVE_INFINITY;
+            Integer proximo = null;
+            
+            // Encontra a cidade não visitada mais próxima
+            for (int j = 0; j < n; j++) {
+                if (!visitado[j] && matriz[atual][j] < menorDist) {
+                    menorDist = matriz[atual][j];
+                    proximo = j;
                 }
             }
+            
+            if (proximo == null) {
+                throw new RuntimeException("Não foi possível encontrar um próximo ponto. Verifique a matriz de distâncias.");
+            }
+            
+            // Atualiza o caminho e marca a cidade como visitada
+            caminho[i] = proximo;
+            visitado[proximo] = true;
+            totalDistancia += menorDist;
+            atual = proximo;
         }
-
-        // Calcula o custo total do tour completo
-        totalDistancia = calculateTourCost(tour, matriz);
-
-        return new Resultado(tour, totalDistancia);
-    }
-
-    // Método para calcular o custo total de um tour
-    private static double calculateTourCost(List<Integer> tour, double[][] matriz) {
-        double cost = 0.0;
-        for (int i = 0; i < tour.size() - 1; i++) {
-            cost += matriz[tour.get(i)][tour.get(i + 1)];
-        }
-        cost += matriz[tour.get(tour.size() - 1)][tour.get(0)]; // Retorna à cidade inicial
-        return cost;
+        
+        // Adiciona a distância de volta à cidade inicial para fechar o ciclo
+        totalDistancia += matriz[atual][caminho[0]];
+        
+        return new Resultado(caminho, totalDistancia);
     }
 
     // Classe para armazenar o resultado
     public static class Resultado {
-        public List<Integer> caminho;
+        public int[] caminho;
         public double distancia;
 
-        public Resultado(List<Integer> caminho, double distancia) {
+        public Resultado(int[] caminho, double distancia) {
             this.caminho = caminho;
             this.distancia = distancia;
         }
@@ -194,40 +147,39 @@ public class TSPCheapestInsertion {
     public static Resultado aplicarHeuristica(String arquivo) throws IOException {
         double[][] matriz = lerTSP(arquivo);
         
-        // Verifica se a matriz contém valores NaN ou Infinito
+        // Verifica se a matriz contém valores NaN
         for (double[] linha : matriz) {
             for (double valor : linha) {
-                if (Double.isNaN(valor) || Double.isInfinite(valor)) {
-                    throw new RuntimeException("A matriz de distâncias contém valores inválidos.");
+                if (Double.isNaN(valor)) {
+                    throw new RuntimeException("A matriz de distâncias contém valores ausentes.");
                 }
             }
         }
         
-        return cheapestInsertion(matriz);
+        return vizinhoMaisProximo(matriz);
     }
 
     // Função principal para testar com arquivos
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         String diretorio = "../../testCases/";
         String[] arquivos = { "si535.tsp", "pa561.tsp", "si1032.tsp" };
         
         try {
             // Redireciona a saída padrão para um arquivo de log
-            PrintStream logStream = new PrintStream(new FileOutputStream("tsp_log_cheapest.txt"));
+            PrintStream logStream = new PrintStream(new FileOutputStream("tsp_log_nearest.txt"));
             System.setOut(logStream);
 
             for (String arquivo : arquivos) {
                 try {
                     String caminhoArquivo = diretorio + arquivo;
-
-                    // Aplica a heurística ao arquivo TSP
                     Resultado resultado = aplicarHeuristica(caminhoArquivo);
                     System.out.println("Resultado para " + arquivo + ":");
                     System.out.print("Caminho: ");
                     for (int cidade : resultado.caminho) {
                         System.out.print(cidade + " -> ");
                     }
-                    System.out.println(resultado.caminho.get(0)); // Fecha o ciclo
+                    // Fecha o ciclo imprimindo a cidade inicial no final
+                    System.out.println(resultado.caminho[0]);
                     System.out.println("Distância total: " + resultado.distancia);
                     System.out.println();
                 } catch (IOException e) {
