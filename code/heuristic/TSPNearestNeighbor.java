@@ -172,7 +172,14 @@ public class TSPNearestNeighbor {
             for (String arquivo : arquivos) {
                 try {
                     String caminhoArquivo = diretorio + arquivo;
+
+                    // Aplica a heurística ao arquivo TSP
+                    long startTime = System.nanoTime();
                     Resultado resultado = aplicarHeuristica(caminhoArquivo);
+                    long endTime = System.nanoTime();
+
+                    long duration = (endTime - startTime) / 1_000_000; // Em milissegundos
+
                     System.out.println("Resultado para " + arquivo + ":");
                     System.out.print("Caminho: ");
                     for (int cidade : resultado.caminho) {
@@ -181,6 +188,7 @@ public class TSPNearestNeighbor {
                     // Fecha o ciclo imprimindo a cidade inicial no final
                     System.out.println(resultado.caminho[0]);
                     System.out.println("Distância total: " + resultado.distancia);
+                    System.out.println("Tempo de execução: " + duration + " ms");
                     System.out.println();
                 } catch (IOException e) {
                     System.err.println("Erro ao ler o arquivo " + arquivo + ": " + e.getMessage());
